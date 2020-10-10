@@ -46,6 +46,7 @@ extern const int16_t AudioWaveformSine[257];
 #define WAVEFORM_SAWTOOTH_REVERSE  6
 #define WAVEFORM_SAMPLE_HOLD       7
 #define WAVEFORM_TRIANGLE_VARIABLE 8
+#define WAVEFORM_SINE_HIRES        9
 
 class AudioSynthWaveform : public AudioStream
 {
