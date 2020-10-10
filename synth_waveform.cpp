@@ -33,12 +33,35 @@
 // uncomment for more accurate but more computationally expensive frequency modulation
 //#define IMPROVE_EXPONENTIAL_ACCURACY
 
+static int32_t taylor(uint32_t ph)
+{
+  int32_t angle, sum, p1, p2, p3, p5, p7, p9, p11;
+
+  if (ph >= 0xC0000000 || ph < 0x40000000) {                            // ph:  0.32
+    angle = (int32_t)ph; // valid from -90 to +90 degrees
+  } else {
+    angle = (int32_t)(0x80000000u - ph);                        // angle: 2.30
+  }
+  p1 =  multiply_32x32_rshift32_rounded(angle, 1686629713) << 2;        // p1:  2.30
+  p2 =  multiply_32x32_rshift32_rounded(p1, p1) << 1;                   // p2:  3.29
+  p3 =  multiply_32x32_rshift32_rounded(p2, p1) << 2;                   // p3:  3.29
+  sum = multiply_subtract_32x32_rshift32_rounded(p1, p3, 1431655765);   // sum: 2.30
+  p5 =  multiply_32x32_rshift32_rounded(p3, p2);                        // p5:  6.26
+  sum = multiply_accumulate_32x32_rshift32_rounded(sum, p5, 572662306);
+  p7 =  multiply_32x32_rshift32_rounded(p5, p2);                        // p7:  9.23
+  sum = multiply_subtract_32x32_rshift32_rounded(sum, p7, 109078534);
+  p9 =  multiply_32x32_rshift32_rounded(p7, p2);                        // p9: 12.20
+  sum = multiply_accumulate_32x32_rshift32_rounded(sum, p9, 12119837);
+  p11 = multiply_32x32_rshift32_rounded(p9, p2);                       // p11: 15.17
+  sum = multiply_subtract_32x32_rshift32_rounded(sum, p11, 881443);
+  return sum <<= 1;                                                 // return:  1.31
+}
 
 void AudioSynthWaveform::update(void)
 {
 	audio_block_t *block;
 	int16_t *bp, *end;
-	int32_t val1, val2;
+	int32_t val, val1, val2;
 	int16_t magnitude15;
 	uint32_t i, ph, index, index2, scale;
 	const uint32_t inc = phase_increment;
@@ -170,6 +193,14 @@ void AudioSynthWaveform::update(void)
 			ph = newph;
 		}
 		break;
+    
+	case WAVEFORM_SINE_HIRES:
+	    	for (i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
+	      		ph = phasedata[i];
+	      		val = taylor(ph);
+	      		*bp++ = val >> 16;
+	    	}
+	    	break;
 	}
 	phase_accumulator = ph - phase_offset;
 
@@ -377,6 +408,7 @@ void AudioSynthWaveformModulated::update(void)
 			}
 		}
 		break;
+			
 	case WAVEFORM_SAMPLE_HOLD:
 		for (i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
 			ph = phasedata[i];
@@ -387,6 +419,14 @@ void AudioSynthWaveformModulated::update(void)
 			*bp++ = sample;
 		}
 		break;
+    
+	case WAVEFORM_SINE_HIRES:
+	    	for (i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
+	      		ph = phasedata[i];
+	      		val = taylor(ph);
+	      		*bp++ = val >> 16;
+	    	}
+	    	break;
 	}
 
 	if (tone_offset) {
